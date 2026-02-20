@@ -1,5 +1,4 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicegoodthings/nicegoodthings.github.io/HEAD/tauri-v2-capabilities.schema.json",
   "identifier": "default",
   "description": "Default capability for the main window",
   "windows": ["main"],
