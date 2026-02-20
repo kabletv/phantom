@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crates/phantom-vt",
+    "crates/phantom-pty",
+    "crates/phantom-git",
+    "crates/phantom-app",
+]
+resolver = "2"
