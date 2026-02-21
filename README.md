@@ -1,6 +1,19 @@
-# Phantom
+<p align="center">
+  <img src="docs/assets/banner.png" alt="Phantom — AI-powered development workspace" width="100%" />
+</p>
 
-An AI-powered development workspace built with Tauri v2, React, and SolidJS. Combines a full terminal emulator, AI CLI session launcher, and automated repository analysis dashboard in a single native desktop app.
+<p align="center">
+  <strong>An AI-powered development workspace built with Tauri v2, React, and Rust.</strong><br/>
+  Terminal emulator + AI CLI launcher + repository analysis dashboard — in a single native app.
+</p>
+
+<p align="center">
+  <a href="https://github.com/kabletv/phantom/actions"><img src="https://github.com/kabletv/phantom/actions/workflows/release.yml/badge.svg" alt="Build" /></a>
+  <a href="https://github.com/kabletv/phantom/releases"><img src="https://img.shields.io/github/v/release/kabletv/phantom?label=download" alt="Release" /></a>
+  <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS" />
+</p>
+
+---
 
 ```
  +-----------+------------------------------------------+
