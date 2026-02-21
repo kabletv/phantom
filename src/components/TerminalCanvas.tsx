@@ -1,9 +1,9 @@
 /**
  * SolidJS component that wraps the Canvas2D terminal renderer.
  *
- * Manages the canvas element lifecycle, observes resize events to
- * report new terminal grid dimensions, and triggers re-renders when
- * cell data or cursor state changes.
+ * Watches a persistent cell buffer and frameVersion counter to trigger
+ * re-renders. The cell buffer is always complete (FullFrame replaces,
+ * DirtyRows patches in-place in the store).
  */
 
 import { createEffect, createSignal, onCleanup, onMount, type Component } from "solid-js";
@@ -14,7 +14,7 @@ export interface TerminalCanvasProps {
   cols: number;
   rows: number;
   cells?: Uint8Array;
-  dirtyRows?: Array<{ y: number; cells: Uint8Array }>;
+  frameVersion: number;
   cursorRow: number;
   cursorCol: number;
   cursorShape: string;
@@ -46,7 +46,7 @@ const TerminalCanvas: Component<TerminalCanvasProps> = (props) => {
           const dims = calculateDimensions(width, height, {
             cellWidth: cellSize.width,
             cellHeight: cellSize.height,
-            ascent: 0, // Not needed for dimension calculation
+            ascent: 0,
             descent: 0,
           });
 
@@ -61,51 +61,22 @@ const TerminalCanvas: Component<TerminalCanvasProps> = (props) => {
     }
   });
 
-  // Re-render when full-frame cell data changes.
+  // Re-render when frameVersion changes (covers both FullFrame and DirtyRows).
   createEffect(() => {
     const r = renderer();
     const cells = props.cells;
+    const version = props.frameVersion; // Track frameVersion to re-run on every update.
+    void version;
+
     if (r && cells && cells.byteLength > 0) {
       r.renderFullFrame(cells, props.cols, props.rows);
       r.renderCursor(props.cursorRow, props.cursorCol, props.cursorShape, props.cursorVisible);
     }
   });
 
-  // Re-render when dirty rows change.
-  createEffect(() => {
-    const r = renderer();
-    const dirty = props.dirtyRows;
-    if (r && dirty && dirty.length > 0) {
-      r.renderDirtyRows(dirty);
-      r.renderCursor(props.cursorRow, props.cursorCol, props.cursorShape, props.cursorVisible);
-    }
-  });
-
-  // Re-render cursor when cursor props change (independent of cell data).
-  createEffect(() => {
-    const r = renderer();
-    if (!r) return;
-
-    // Access all cursor props so this effect tracks them.
-    const row = props.cursorRow;
-    const col = props.cursorCol;
-    const shape = props.cursorShape;
-    const visible = props.cursorVisible;
-
-    // Only re-render cursor standalone when we have existing cell data.
-    // Full-frame and dirty-row effects already render the cursor.
-    if (!props.cells && !props.dirtyRows) {
-      r.renderCursor(row, col, shape, visible);
-    }
-  });
-
-  // Update dimensions when cols/rows props change.
-  createEffect(() => {
-    const r = renderer();
-    if (r) {
-      r.setDimensions(props.cols, props.rows);
-    }
-  });
+  // Note: dimensions are handled by renderFullFrame() which calls
+  // setDimensions() when cols/rows change. A separate effect would
+  // clear the canvas AFTER rendering due to effect ordering.
 
   return (
     <canvas

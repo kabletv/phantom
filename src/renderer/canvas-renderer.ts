@@ -124,6 +124,7 @@ export class CanvasRenderer {
       const rowData = data.subarray(rowOffset, rowOffset + cols * CELL_SIZE);
       this.drawRow(rowData, y, cols);
     }
+
   }
 
   /**

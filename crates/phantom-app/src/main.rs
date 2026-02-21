@@ -18,6 +18,7 @@ fn main() {
             commands::terminal::resize_terminal,
             commands::terminal::close_terminal,
         ])
+        // Devtools can be opened with right-click > Inspect Element in debug builds.
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

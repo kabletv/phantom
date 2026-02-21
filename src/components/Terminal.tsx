@@ -1,13 +1,6 @@
 /**
  * Main terminal component that ties together session management,
  * keyboard input, canvas rendering, and resize handling.
- *
- * On mount:
- * 1. Measures the container to calculate initial cols/rows
- * 2. Creates a session store with reactive signals
- * 3. Calls createTerminal() with the Channel callback
- * 4. Wires keyboard input through encodeKeyEvent -> writeInput
- * 5. Wires resize via TerminalCanvas onResize -> resizeTerminal
  */
 
 import { createSignal, onCleanup, onMount, Show, type Component } from "solid-js";
@@ -27,22 +20,16 @@ const Terminal: Component = () => {
   const [sessionId, setSessionId] = createSignal<SessionId | null>(null);
   const [initialized, setInitialized] = createSignal(false);
 
-  // Pre-create the store with placeholder dimensions; will be updated on mount.
   const { session, handleEvent } = createSessionStore(0, 80, 24);
 
   onMount(async () => {
-    // Measure font metrics to calculate initial grid dimensions.
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      console.error("Failed to create canvas context for font measurement");
-      return;
-    }
+    if (!ctx) return;
 
     const metrics = measureFontMetrics(DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, ctx);
     const rect = containerRef.getBoundingClientRect();
     const dims = calculateDimensions(rect.width, rect.height, metrics);
-
     const cols = Math.max(dims.cols, 2);
     const rows = Math.max(dims.rows, 2);
 
@@ -50,8 +37,6 @@ const Terminal: Component = () => {
       const id = await createTerminal(null, cols, rows, handleEvent);
       setSessionId(id);
       setInitialized(true);
-
-      // Focus the container so it receives keyboard events.
       containerRef.focus();
     } catch (err) {
       console.error("Failed to create terminal session:", err);
@@ -61,13 +46,10 @@ const Terminal: Component = () => {
   onCleanup(() => {
     const id = sessionId();
     if (id !== null) {
-      closeTerminal(id).catch((err: unknown) => {
-        console.error("Failed to close terminal session:", err);
-      });
+      closeTerminal(id).catch(() => {});
     }
   });
 
-  /** Handle keyboard events: encode and send to the PTY. */
   function handleKeyDown(event: KeyboardEvent) {
     const id = sessionId();
     if (id === null) return;
@@ -76,20 +58,14 @@ const Terminal: Component = () => {
     if (bytes !== null) {
       event.preventDefault();
       event.stopPropagation();
-      writeInput(id, bytes).catch((err: unknown) => {
-        console.error("Failed to write input:", err);
-      });
+      writeInput(id, bytes).catch(() => {});
     }
   }
 
-  /** Handle resize events from the TerminalCanvas ResizeObserver. */
   function handleResize(cols: number, rows: number) {
     const id = sessionId();
     if (id === null) return;
-
-    resizeTerminal(id, cols, rows).catch((err: unknown) => {
-      console.error("Failed to resize terminal:", err);
-    });
+    resizeTerminal(id, cols, rows).catch(() => {});
   }
 
   return (
@@ -107,6 +83,7 @@ const Terminal: Component = () => {
         onKeyDown={handleKeyDown}
         style={{
           flex: "1",
+          "min-height": "0",
           overflow: "hidden",
           outline: "none",
           background: "#000",
@@ -117,7 +94,7 @@ const Terminal: Component = () => {
             cols={session().cols}
             rows={session().rows}
             cells={session().cells ?? undefined}
-            dirtyRows={session().dirtyRows ?? undefined}
+            frameVersion={session().frameVersion}
             cursorRow={session().cursorRow}
             cursorCol={session().cursorCol}
             cursorShape={session().cursorShape}

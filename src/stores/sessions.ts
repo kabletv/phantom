@@ -1,23 +1,25 @@
 /**
  * Session state store for terminal sessions.
  *
- * Uses SolidJS signals to manage reactive terminal session state. Handles
- * incoming TerminalEvent messages from the backend and updates the
- * appropriate signal fields.
+ * Maintains a persistent cell buffer that FullFrame replaces entirely
+ * and DirtyRows patches in-place. A frameVersion counter triggers
+ * re-renders on every update.
  */
 
 import { createSignal } from "solid-js";
 import type { TerminalEvent, SessionId } from "../lib/ipc";
+
+const CELL_SIZE = 16;
 
 /** Represents the full state of a terminal session. */
 export interface SessionState {
   id: SessionId;
   cols: number;
   rows: number;
-  /** Full-frame cell data (binary, 16 bytes per cell). */
+  /** Persistent cell buffer (binary, 16 bytes per cell, row-major). */
   cells: Uint8Array | null;
-  /** Incremental dirty row updates. */
-  dirtyRows: Array<{ y: number; cells: Uint8Array }> | null;
+  /** Monotonic counter incremented on every visual update. */
+  frameVersion: number;
   cursorRow: number;
   cursorCol: number;
   cursorShape: string;
@@ -28,9 +30,6 @@ export interface SessionState {
 
 /**
  * Create a reactive session store for a terminal session.
- *
- * Returns the signal accessor and setter, plus an event handler function
- * that should be passed as the Tauri Channel callback.
  */
 export function createSessionStore(id: SessionId, cols: number, rows: number) {
   const [session, setSession] = createSignal<SessionState>({
@@ -38,7 +37,7 @@ export function createSessionStore(id: SessionId, cols: number, rows: number) {
     cols,
     rows,
     cells: null,
-    dirtyRows: null,
+    frameVersion: 0,
     cursorRow: 0,
     cursorCol: 0,
     cursorShape: "block",
@@ -47,44 +46,53 @@ export function createSessionStore(id: SessionId, cols: number, rows: number) {
     alive: true,
   });
 
-  /**
-   * Handle a TerminalEvent from the backend.
-   *
-   * Updates the session signal based on the event type. For FullFrame events,
-   * cells is set and dirtyRows is cleared. For DirtyRows, dirtyRows is set
-   * and cells is cleared. This distinction lets the renderer know which
-   * rendering path to use.
-   */
   function handleEvent(event: TerminalEvent): void {
     switch (event.type) {
-      case "FullFrame":
+      case "FullFrame": {
+        const cells = new Uint8Array(event.cells);
         setSession((prev) => ({
           ...prev,
           cols: event.cols,
           rows: event.rows,
-          cells: new Uint8Array(event.cells),
-          dirtyRows: null,
+          cells,
+          frameVersion: prev.frameVersion + 1,
           cursorRow: event.cursor_row,
           cursorCol: event.cursor_col,
           cursorShape: event.cursor_shape,
           cursorVisible: event.cursor_visible,
         }));
         break;
+      }
 
-      case "DirtyRows":
-        setSession((prev) => ({
-          ...prev,
-          cells: null,
-          dirtyRows: event.rows.map((row) => ({
-            y: row.y,
-            cells: new Uint8Array(row.cells),
-          })),
-          cursorRow: event.cursor_row,
-          cursorCol: event.cursor_col,
-          cursorShape: event.cursor_shape,
-          cursorVisible: event.cursor_visible,
-        }));
+      case "DirtyRows": {
+        setSession((prev) => {
+          if (!prev.cells) return prev;
+
+          // Clone the cell buffer and patch dirty rows in-place.
+          const cells = new Uint8Array(prev.cells);
+          const rowBytes = prev.cols * CELL_SIZE;
+
+          for (const row of event.rows) {
+            const rowData = new Uint8Array(row.cells);
+            const offset = row.y * rowBytes;
+            // Bounds check: ensure the row fits in the buffer.
+            if (offset + rowData.byteLength <= cells.byteLength) {
+              cells.set(rowData, offset);
+            }
+          }
+
+          return {
+            ...prev,
+            cells,
+            frameVersion: prev.frameVersion + 1,
+            cursorRow: event.cursor_row,
+            cursorCol: event.cursor_col,
+            cursorShape: event.cursor_shape,
+            cursorVisible: event.cursor_visible,
+          };
+        });
         break;
+      }
 
       case "TitleChanged":
         setSession((prev) => ({
@@ -94,7 +102,6 @@ export function createSessionStore(id: SessionId, cols: number, rows: number) {
         break;
 
       case "Bell":
-        // Could flash the screen or play a sound in the future.
         break;
 
       case "Exited":
