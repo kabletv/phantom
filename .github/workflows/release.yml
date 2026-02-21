@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -35,38 +35,28 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates/phantom-app
+          workspaces: "."
           cache-on-failure: true
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci
 
-      - name: Build terminal package
-        run: npm run build:terminal
-
-      - uses: tauri-apps/tauri-action@v1
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Uncomment and set these secrets for code signing:
-          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          projectPath: crates/phantom-app
+          tauriScript: cargo tauri
           tagName: v__VERSION__
           releaseName: "Phantom v__VERSION__"
           releaseBody: |
-            See the assets below to download and install Phantom for macOS.
+            Download and install Phantom for macOS.
 
-            **Apple Silicon (M1+):** Download the `aarch64` DMG.
-            **Intel Macs:** Download the `x86_64` DMG.
+            **Apple Silicon (M1+):** `aarch64` DMG
+            **Intel Macs:** `x86_64` DMG
 
             ### Install
             1. Open the `.dmg` file
-            2. Drag **Phantom** to the **Applications** folder
+            2. Drag **Phantom** to **Applications**
             3. Launch from Applications or Spotlight
           releaseDraft: false
           prerelease: false
