@@ -6,7 +6,7 @@ Cross-platform terminal emulator built with Tauri v2 and SolidJS.
 
 - **Desktop shell**: Tauri v2
 - **Frontend**: SolidJS + TypeScript + Vite
-- **Terminal emulation**: libghostty-vt (via FFI)
+- **Terminal emulation**: alacritty_terminal (Rust crate)
 - **PTY**: portable-pty
 - **Language**: Rust (backend), TypeScript (frontend)
 
@@ -29,7 +29,7 @@ phantom/
     index.html             # HTML entry point
   crates/
     phantom-app/           # Tauri v2 binary crate (desktop shell)
-    phantom-vt/            # FFI bindings to libghostty-vt
+    phantom-vt/            # Terminal emulation wrapper (alacritty_terminal)
     phantom-pty/           # PTY spawn/read/write/resize
     phantom-git/           # Git operations
   package.json             # Node dependencies
