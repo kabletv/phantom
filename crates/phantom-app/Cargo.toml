@@ -10,6 +10,10 @@ path = "src/main.rs"
 [dependencies]
 phantom-vt = { path = "../phantom-vt" }
 phantom-pty = { path = "../phantom-pty" }
+phantom-db = { path = "../phantom-db" }
+phantom-git = { path = "../phantom-git" }
+phantom-analysis = { path = "../phantom-analysis" }
+rusqlite = { version = "0.31", features = ["bundled"] }
 tauri = { version = "2", features = ["wry"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

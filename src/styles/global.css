@@ -1,0 +1,512 @@
+/* ============================================================
+   Phantom Design System -- Global Tokens & Base Styles
+   ============================================================ */
+
+:root {
+  /* --- Backgrounds (darkest to lightest) --- */
+  --bg-base:      #09090b;
+  --bg-surface:   #111113;
+  --bg-elevated:  #1a1a1f;
+  --bg-overlay:   #222228;
+  --bg-inset:     #0d0d0f;
+
+  /* Aliases for legacy compat */
+  --bg-primary:   var(--bg-base);
+  --bg-secondary: var(--bg-surface);
+  --bg-tertiary:  var(--bg-elevated);
+
+  /* --- Text --- */
+  --text-primary:   #ececf0;
+  --text-secondary: #8b8b96;
+  --text-tertiary:  #5a5a65;
+  --text-inverse:   #09090b;
+
+  /* --- Accent --- */
+  --accent:        #7c6aef;
+  --accent-hover:  #8f7ff7;
+  --accent-muted:  rgba(124, 106, 239, 0.12);
+  --accent-subtle: rgba(124, 106, 239, 0.06);
+
+  /* --- Status --- */
+  --status-success:      #3dd68c;
+  --status-success-muted: rgba(61, 214, 140, 0.12);
+  --status-error:        #f25f5c;
+  --status-error-muted:  rgba(242, 95, 92, 0.12);
+  --status-warning:      #f0c040;
+  --status-warning-muted: rgba(240, 192, 64, 0.12);
+  --status-info:         #6cb4ee;
+  --status-info-muted:   rgba(108, 180, 238, 0.12);
+  --status-neutral:      #5a5a65;
+
+  /* Legacy aliases */
+  --green:  var(--status-success);
+  --red:    var(--status-error);
+  --yellow: var(--status-warning);
+
+  /* --- Borders --- */
+  --border-default:     #1f1f24;
+  --border-strong:      #2a2a30;
+  --border-focus:       #7c6aef;
+  --border-interactive: #2f2f36;
+
+  /* Legacy alias */
+  --border: var(--border-default);
+
+  /* --- Typography --- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Berkeley Mono", "JetBrains Mono", "Fira Code", "SF Mono", ui-monospace, monospace;
+
+  /* --- Spacing (4px base) --- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+
+  /* --- Border Radius --- */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-full: 9999px;
+
+  /* --- Shadows --- */
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+
+  /* --- Transitions --- */
+  --transition-fast:   120ms ease-out;
+  --transition-normal: 200ms ease-out;
+  --transition-slow:   300ms ease-out;
+
+  /* Easing curves from UX quality standards */
+  --ease-micro:  cubic-bezier(0.2, 0, 0, 1);
+  --ease-layout: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-enter:  cubic-bezier(0, 0, 0, 1);
+  --ease-exit:   cubic-bezier(0.32, 0, 0.67, 0);
+
+  /* --- Layout --- */
+  --sidebar-width:    220px;
+  --statusbar-height: 28px;
+}
+
+/* ============================================================
+   Reset & Base
+   ============================================================ */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ============================================================
+   Focus ring
+   ============================================================ */
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ============================================================
+   Scrollbars
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ============================================================
+   Skeleton / shimmer animation
+   ============================================================ */
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-out-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ============================================================
+   Route transition wrapper
+   ============================================================ */
+
+.view-enter {
+  animation: fade-in 250ms var(--ease-micro) both;
+}
+
+.view-exit {
+  animation: fade-out 150ms var(--ease-exit) both;
+}
+
+/* ============================================================
+   Component: Sidebar nav link
+   ============================================================ */
+
+.sidebar-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: transparent;
+  border-left: 2px solid transparent;
+  transition: color 120ms ease-out, background 120ms ease-out;
+}
+
+.sidebar-nav-link:hover {
+  color: var(--text-primary);
+  background: var(--accent-subtle);
+}
+
+.sidebar-nav-link.active {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-left-color: var(--accent);
+}
+
+/* ============================================================
+   Component: Sidebar branch item
+   ============================================================ */
+
+.branch-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: color 120ms ease-out, background 120ms ease-out;
+  border: none;
+  text-align: left;
+  width: 100%;
+}
+
+.branch-item:hover {
+  color: var(--text-primary);
+  background: var(--accent-subtle);
+}
+
+.branch-item[data-selected="true"] {
+  color: var(--text-primary);
+  background: var(--accent-muted);
+}
+
+/* ============================================================
+   Component: Ghost button
+   ============================================================ */
+
+.btn-ghost {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color 120ms ease-out, background 120ms ease-out;
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.btn-ghost:active {
+  transform: scale(0.98);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.btn-ghost-accent {
+  color: var(--accent);
+}
+
+.btn-ghost-accent:hover {
+  color: var(--accent-hover);
+  background: var(--accent-subtle);
+}
+
+/* ============================================================
+   Component: Primary button
+   ============================================================ */
+
+.btn-primary {
+  height: 32px;
+  padding: 0 var(--space-4);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--text-inverse);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 120ms ease-out, transform 60ms ease-out;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Component: Outline button
+   ============================================================ */
+
+.btn-outline {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+
+.btn-outline:hover {
+  background: var(--accent-subtle);
+}
+
+.btn-outline:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================
+   Component: Form inputs
+   ============================================================ */
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-inset), 0 0 0 3px rgba(124, 106, 239, 0.15);
+  outline: none;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.textarea {
+  height: auto;
+  min-height: 160px;
+  padding: 10px;
+  font-family: var(--font-mono);
+  line-height: 20px;
+  resize: vertical;
+}
+
+.select {
+  cursor: pointer;
+}
+
+/* ============================================================
+   Component: Form label (overline)
+   ============================================================ */
+
+.label-overline {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-1);
+  display: block;
+}
+
+/* ============================================================
+   Component: Card (base)
+   ============================================================ */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+}
+
+.card:hover {
+  border-color: var(--border-interactive);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   Component: Status badge
+   ============================================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.badge-queued    { background: var(--status-info-muted);    color: var(--status-info); }
+.badge-running   { background: var(--status-warning-muted); color: var(--status-warning); animation: pulse-opacity 1.5s ease-in-out infinite; }
+.badge-completed { background: var(--status-success-muted); color: var(--status-success); }
+.badge-failed    { background: var(--status-error-muted);   color: var(--status-error); }
+.badge-neutral   { color: var(--text-tertiary); }
+
+/* ============================================================
+   Component: Progress bar (indeterminate)
+   ============================================================ */
+
+.progress-bar {
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s linear infinite;
+}

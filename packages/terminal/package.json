@@ -1,0 +1,27 @@
+{
+  "name": "@phantom/terminal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "solid-js": "^1.9"
+  },
+  "devDependencies": {
+    "vite": "^6",
+    "vite-plugin-solid": "^2",
+    "typescript": "^5"
+  }
+}

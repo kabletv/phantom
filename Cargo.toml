@@ -3,6 +3,8 @@ members = [
     "crates/phantom-vt",
     "crates/phantom-pty",
     "crates/phantom-git",
+    "crates/phantom-db",
+    "crates/phantom-analysis",
     "crates/phantom-app",
 ]
 resolver = "2"

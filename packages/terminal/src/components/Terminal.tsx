@@ -15,7 +15,11 @@ import { calculateDimensions } from "../renderer/font-metrics";
 const DEFAULT_FONT_FAMILY = "Menlo, Monaco, Courier New, monospace";
 const DEFAULT_FONT_SIZE = 14;
 
-const Terminal: Component = () => {
+interface TerminalProps {
+  command?: string;
+}
+
+const Terminal: Component<TerminalProps> = (props) => {
   let containerRef!: HTMLDivElement;
   const [sessionId, setSessionId] = createSignal<SessionId | null>(null);
   const [initialized, setInitialized] = createSignal(false);
@@ -38,6 +42,13 @@ const Terminal: Component = () => {
       setSessionId(id);
       setInitialized(true);
       containerRef.focus();
+
+      // If a command was provided (e.g., from a CLI preset), inject it
+      if (props.command) {
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(props.command + "\n");
+        await writeInput(id, new Uint8Array(bytes));
+      }
     } catch (err) {
       console.error("Failed to create terminal session:", err);
     }

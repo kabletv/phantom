@@ -1,9 +1,12 @@
 //! Application state shared between Tauri commands, I/O threads, and the render pump.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc;
+
+use rusqlite::Connection;
+use tokio::sync::{mpsc, Semaphore};
 
 pub type SessionId = u64;
 
@@ -31,27 +34,32 @@ pub struct AppState {
     pub render_stops: Arc<Mutex<HashMap<SessionId, mpsc::Sender<()>>>>,
     /// Monotonically increasing session ID counter.
     next_id: AtomicU64,
+    /// SQLite database connection.
+    pub db: Arc<Mutex<Connection>>,
+    /// Path to the repo being managed.
+    pub repo_path: PathBuf,
+    /// Shared semaphore to limit concurrent analysis jobs.
+    pub analysis_semaphore: Arc<Semaphore>,
 }
 
 impl AppState {
-    /// Create a new, empty AppState.
-    pub fn new() -> Self {
+    /// Create a new AppState with a database connection and repo path.
+    pub fn new(db: Connection, repo_path: PathBuf) -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             io_stops: Arc::new(Mutex::new(HashMap::new())),
             render_stops: Arc::new(Mutex::new(HashMap::new())),
             next_id: AtomicU64::new(1),
+            db: Arc::new(Mutex::new(db)),
+            repo_path,
+            analysis_semaphore: Arc::new(Semaphore::new(
+                phantom_analysis::runner::DEFAULT_MAX_CONCURRENCY,
+            )),
         }
     }
 
     /// Allocate the next unique session ID.
     pub fn next_session_id(&self) -> SessionId {
         self.next_id.fetch_add(1, Ordering::Relaxed)
-    }
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self::new()
     }
 }
