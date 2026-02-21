@@ -134,6 +134,16 @@ impl PtyHandle {
     }
 }
 
+impl PtyHandle {
+    /// Extract the PTY reader for use outside the session mutex.
+    ///
+    /// After calling this, `read()` on this handle will always return 0.
+    /// The caller is responsible for reading from the returned reader.
+    pub fn take_reader(&mut self) -> Box<dyn Read + Send> {
+        std::mem::replace(&mut self.reader, Box::new(std::io::empty()))
+    }
+}
+
 impl Drop for PtyHandle {
     fn drop(&mut self) {
         let _ = self.child.kill();

@@ -97,12 +97,12 @@ pub fn encode_row(screen: &ScreenView, row: u16) -> Vec<u8> {
 }
 
 /// Convert a CursorShape to the string format expected by the frontend.
-pub fn cursor_shape_str(shape: phantom_vt::CursorShape) -> String {
+pub fn cursor_shape_str(shape: phantom_vt::CursorShape) -> &'static str {
     match shape {
-        phantom_vt::CursorShape::Block => "block".to_string(),
-        phantom_vt::CursorShape::Underline => "underline".to_string(),
-        phantom_vt::CursorShape::Bar => "bar".to_string(),
-        phantom_vt::CursorShape::Hidden => "hidden".to_string(),
+        phantom_vt::CursorShape::Block => "block",
+        phantom_vt::CursorShape::Underline => "underline",
+        phantom_vt::CursorShape::Bar => "bar",
+        phantom_vt::CursorShape::Hidden => "hidden",
     }
 }
 

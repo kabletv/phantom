@@ -93,7 +93,7 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
             cells,
             cursor_row,
             cursor_col,
-            cursor_shape: cursor_shape.clone(),
+            cursor_shape: cursor_shape.to_string(),
             cursor_visible,
         });
     } else {
@@ -117,7 +117,7 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
                     cells,
                     cursor_row,
                     cursor_col,
-                    cursor_shape: cursor_shape.clone(),
+                    cursor_shape: cursor_shape.to_string(),
                     cursor_visible,
                 });
             }
@@ -143,7 +143,7 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
                         rows: dirty_rows,
                         cursor_row,
                         cursor_col,
-                        cursor_shape: cursor_shape.clone(),
+                        cursor_shape: cursor_shape.to_string(),
                         cursor_visible,
                     });
                 } else {
@@ -156,11 +156,8 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
     // Check for title changes.
     let current_title = state.session.title().map(|s| s.to_string());
     if current_title != state.last_title {
-        if let Some(ref title) = current_title {
-            events.push(TerminalEvent::TitleChanged {
-                title: title.clone(),
-            });
-        }
+        let title = current_title.clone().unwrap_or_default();
+        events.push(TerminalEvent::TitleChanged { title });
         state.last_title = current_title;
     }
 

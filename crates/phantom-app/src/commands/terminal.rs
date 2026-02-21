@@ -26,13 +26,18 @@ pub async fn create_terminal(
 ) -> Result<SessionId, String> {
     let session_id = state.next_session_id();
 
-    let session = phantom_pty::TerminalSession::new(
+    let mut session = phantom_pty::TerminalSession::new(
         session_id,
         shell.as_deref(),
         cols,
         rows,
     )
     .map_err(|e| format!("Failed to create terminal session: {e}"))?;
+
+    // Extract the PTY reader before putting session behind the mutex.
+    // The I/O thread owns the reader directly so it can block without
+    // holding the session lock.
+    let pty_reader = session.take_pty_reader();
 
     let session_state = Arc::new(Mutex::new(SessionState {
         session,
@@ -45,7 +50,7 @@ pub async fn create_terminal(
     let (render_stop_tx, render_stop_rx) = mpsc::channel::<()>(1);
 
     // Start the I/O thread (dedicated OS thread for blocking PTY reads).
-    start_io_thread(session_id, Arc::clone(&session_state), io_stop_rx);
+    start_io_thread(session_id, Arc::clone(&session_state), pty_reader, io_stop_rx);
 
     // Start the render pump (tokio task at ~60Hz).
     start_render_pump(

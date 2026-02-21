@@ -127,6 +127,28 @@ impl TerminalSession {
         self.exit_code
     }
 
+    /// Extract the PTY reader for use in a dedicated I/O thread.
+    ///
+    /// After calling this, `process_pty_output()` will no longer read from the PTY.
+    /// The caller should read from the returned reader and feed bytes into
+    /// `vt_mut().write()` manually, then call `handle_write_backs()`.
+    pub fn take_pty_reader(&mut self) -> Box<dyn std::io::Read + Send> {
+        self.pty.take_reader()
+    }
+
+    /// Write VT write-back data to the PTY and sync title.
+    ///
+    /// Call this after feeding bytes into `vt_mut().write()` to handle
+    /// device status responses and title changes.
+    pub fn handle_write_backs(&mut self) -> Result<(), PtyError> {
+        let writes = self.vt.take_pty_writes();
+        for data in &writes {
+            self.pty.write(data.as_bytes())?;
+        }
+        self.title = self.vt.title_owned();
+        Ok(())
+    }
+
     /// Get the current session title (set by shell via OSC escape sequences).
     pub fn title(&self) -> Option<&str> {
         self.title.as_deref()
