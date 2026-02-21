@@ -8,9 +8,12 @@ name = "phantom"
 path = "src/main.rs"
 
 [dependencies]
-tauri = { version = "2", features = [] }
+phantom-vt = { path = "../phantom-vt" }
+phantom-pty = { path = "../phantom-pty" }
+tauri = { version = "2", features = ["wry"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
