@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/phantom-app
+          cache-on-failure: true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build terminal package
+        run: npm run build:terminal
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Uncomment and set these secrets for code signing:
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: crates/phantom-app
+          tagName: v__VERSION__
+          releaseName: "Phantom v__VERSION__"
+          releaseBody: |
+            See the assets below to download and install Phantom for macOS.
+
+            **Apple Silicon (M1+):** Download the `aarch64` DMG.
+            **Intel Macs:** Download the `x86_64` DMG.
+
+            ### Install
+            1. Open the `.dmg` file
+            2. Drag **Phantom** to the **Applications** folder
+            3. Launch from Applications or Spotlight
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}

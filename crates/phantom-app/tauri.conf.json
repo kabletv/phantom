@@ -14,7 +14,11 @@
       {
         "title": "Phantom",
         "width": 1024,
-        "height": 768
+        "height": 768,
+        "minWidth": 640,
+        "minHeight": 480,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       }
     ],
     "security": {
@@ -23,11 +27,33 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["dmg", "app"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
-      "icons/128x128@2x.png"
-    ]
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "AI-powered development workspace",
+    "longDescription": "Phantom combines a terminal emulator, AI CLI launcher, and repository analysis dashboard in a single native desktop app.",
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "dmg": {
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        },
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
+      }
+    }
   }
 }
