@@ -45,14 +45,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tauriScript: cargo tauri
           tagName: v__VERSION__
           releaseName: "Phantom v__VERSION__"
           releaseBody: |
             Download and install Phantom for macOS.
 
-            **Apple Silicon (M1+):** `aarch64` DMG
-            **Intel Macs:** `x86_64` DMG
+            **Apple Silicon (M1+):** Download the `aarch64` DMG
+            **Intel Macs:** Download the `x86_64` DMG
 
             ### Install
             1. Open the `.dmg` file
