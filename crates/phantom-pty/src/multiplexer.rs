@@ -61,6 +61,11 @@ impl Multiplexer {
     ///
     /// Returns a list of session IDs that had new data. Sessions that
     /// encounter I/O errors are silently skipped (they may have exited).
+    ///
+    /// **Warning**: PTY reads are blocking. This method should only be called
+    /// when data is known to be available, or each session should be processed
+    /// on its own dedicated I/O thread. The render pump in phantom-app handles
+    /// this by running each session's I/O on a separate thread.
     pub fn process_all(&mut self) -> Vec<SessionId> {
         let mut active_ids: Vec<SessionId> = Vec::new();
 

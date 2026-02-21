@@ -134,6 +134,12 @@ impl PtyHandle {
     }
 }
 
+impl Drop for PtyHandle {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+    }
+}
+
 /// Returns the user's default shell, falling back to `/bin/sh`.
 fn default_shell() -> String {
     std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
