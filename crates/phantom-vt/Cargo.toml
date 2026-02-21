@@ -5,6 +5,5 @@ edition = "2021"
 
 [dependencies]
 alacritty_terminal = "0.25.1"
-vte = "0.15.0"
 bitflags = "2.11.0"
 

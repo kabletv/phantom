@@ -176,15 +176,10 @@ impl VtTerminal {
         state.title.clone()
     }
 
-    /// Check whether any damage (screen changes) exists since the last reset.
-    pub fn is_damaged(&mut self) -> bool {
-        match self.term.damage() {
-            TermDamage::Full => true,
-            TermDamage::Partial(iter) => iter.count() > 0,
-        }
-    }
-
-    /// Get detailed damage information.
+    /// Get damage information since the last reset.
+    ///
+    /// After using this information for rendering, call `reset_damage()`.
+    /// Note: each call consumes the current damage state from the underlying terminal.
     pub fn damage(&mut self) -> DamageInfo {
         match self.term.damage() {
             TermDamage::Full => DamageInfo::Full,
@@ -352,12 +347,13 @@ mod tests {
     fn test_damage_tracking() {
         let mut term = VtTerminal::new(80, 24);
         // New terminal starts fully damaged.
-        assert!(term.is_damaged());
+        assert!(matches!(term.damage(), crate::screen::DamageInfo::Full));
         term.reset_damage();
 
         // After reset, writing should cause new damage.
         term.write(b"hello");
-        assert!(term.is_damaged());
+        let damage = term.damage();
+        assert!(!matches!(damage, crate::screen::DamageInfo::Partial(ref rows) if rows.is_empty()));
     }
 
     #[test]

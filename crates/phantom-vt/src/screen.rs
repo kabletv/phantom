@@ -67,13 +67,6 @@ impl<'a> ScreenView<'a> {
         (0..cols).map(|col| self.cell(row, col)).collect()
     }
 
-    /// Get damage information since the last reset.
-    pub fn damage(&self) -> DamageInfo {
-        // We need mutable access for damage(), but ScreenView only borrows immutably.
-        // Callers should use VtTerminal::is_damaged() and VtTerminal::reset_damage() instead.
-        // Return Full as a safe default.
-        DamageInfo::Full
-    }
 }
 
 /// Information about which parts of the screen have changed.
@@ -122,10 +115,10 @@ pub(crate) fn resolve_color(
     match color {
         Color::Spec(rgb) => Rgb::new(rgb.r, rgb.g, rgb.b),
         Color::Named(named) => {
-            let idx = *named as usize;
             if let Some(rgb) = colors[*named] {
                 Rgb::new(rgb.r, rgb.g, rgb.b)
             } else {
+                let idx = *named as usize;
                 // Use default ANSI palette or default fg/bg.
                 match named {
                     NamedColor::Foreground | NamedColor::BrightForeground => {
