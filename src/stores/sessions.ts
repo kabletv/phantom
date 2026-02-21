@@ -2,8 +2,8 @@
  * Session state store for terminal sessions.
  *
  * Maintains a persistent cell buffer that FullFrame replaces entirely
- * and DirtyRows patches in-place. A frameVersion counter triggers
- * re-renders on every update.
+ * and DirtyRows patches in-place. Tracks which rows changed so the
+ * renderer can do incremental repaints.
  */
 
 import { createSignal } from "solid-js";
@@ -20,6 +20,8 @@ export interface SessionState {
   cells: Uint8Array | null;
   /** Monotonic counter incremented on every visual update. */
   frameVersion: number;
+  /** Row indices that changed in the last update, or null for full frame. */
+  dirtyRowIndices: number[] | null;
   cursorRow: number;
   cursorCol: number;
   cursorShape: string;
@@ -38,6 +40,7 @@ export function createSessionStore(id: SessionId, cols: number, rows: number) {
     rows,
     cells: null,
     frameVersion: 0,
+    dirtyRowIndices: null,
     cursorRow: 0,
     cursorCol: 0,
     cursorShape: "block",
@@ -56,6 +59,7 @@ export function createSessionStore(id: SessionId, cols: number, rows: number) {
           rows: event.rows,
           cells,
           frameVersion: prev.frameVersion + 1,
+          dirtyRowIndices: null, // null = full frame
           cursorRow: event.cursor_row,
           cursorCol: event.cursor_col,
           cursorShape: event.cursor_shape,
@@ -71,13 +75,14 @@ export function createSessionStore(id: SessionId, cols: number, rows: number) {
           // Clone the cell buffer and patch dirty rows in-place.
           const cells = new Uint8Array(prev.cells);
           const rowBytes = prev.cols * CELL_SIZE;
+          const indices: number[] = [];
 
           for (const row of event.rows) {
             const rowData = new Uint8Array(row.cells);
             const offset = row.y * rowBytes;
-            // Bounds check: ensure the row fits in the buffer.
             if (offset + rowData.byteLength <= cells.byteLength) {
               cells.set(rowData, offset);
+              indices.push(row.y);
             }
           }
 
@@ -85,6 +90,7 @@ export function createSessionStore(id: SessionId, cols: number, rows: number) {
             ...prev,
             cells,
             frameVersion: prev.frameVersion + 1,
+            dirtyRowIndices: indices,
             cursorRow: event.cursor_row,
             cursorCol: event.cursor_col,
             cursorShape: event.cursor_shape,

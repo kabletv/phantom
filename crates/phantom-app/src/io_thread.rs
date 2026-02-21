@@ -36,7 +36,7 @@ fn io_loop(
     mut reader: Box<dyn Read + Send>,
     stop_rx: &mut mpsc::Receiver<()>,
 ) {
-    let mut buf = [0u8; 4096];
+    let mut buf = [0u8; 65536];
 
     loop {
         // Check for stop signal (non-blocking).
@@ -64,6 +64,7 @@ fn io_loop(
 
             state.session.vt_mut().write(&buf[..n]);
             let _ = state.session.handle_write_backs();
+            state.has_pty_data = true;
         }
         // Lock released — render pump and commands can access the session.
     }

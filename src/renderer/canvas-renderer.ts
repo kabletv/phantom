@@ -33,24 +33,9 @@ const DEFAULT_FONT_SIZE = 14;
 const DEFAULT_BG = "rgb(0,0,0)";
 const DEFAULT_FG = "rgb(255,255,255)";
 
-interface DecodedCell {
-  codepoint: number;
-  char: string;
-  fgR: number;
-  fgG: number;
-  fgB: number;
-  bgR: number;
-  bgG: number;
-  bgB: number;
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-  strikethrough: boolean;
-  inverse: boolean;
-  dim: boolean;
-  hidden: boolean;
-  width: number; // 0, 1, or 2
-}
+// Packed RGB for default colors, used for fast comparison.
+const DEFAULT_BG_PACKED = 0;
+const DEFAULT_FG_PACKED = (255 << 16) | (255 << 8) | 255;
 
 export class CanvasRenderer {
   private canvas: HTMLCanvasElement;
@@ -64,6 +49,16 @@ export class CanvasRenderer {
   private rows: number = 0;
   private dpr: number;
 
+  // Caches to avoid redundant canvas state changes.
+  private lastFont: string = "";
+  private lastFillPacked: number = -1;
+
+  // Pre-computed font strings for the 4 possible style combos.
+  private fontNormal: string = "";
+  private fontBold: string = "";
+  private fontItalic: string = "";
+  private fontBoldItalic: string = "";
+
   constructor(canvas: HTMLCanvasElement, fontFamily?: string, fontSize?: number) {
     this.canvas = canvas;
     const ctx = canvas.getContext("2d", { alpha: false });
@@ -76,13 +71,11 @@ export class CanvasRenderer {
     this.dpr = window.devicePixelRatio || 1;
 
     this.measureFont();
+    this.buildFontStrings();
   }
 
   // ── Public API ─────────────────────────────────────────────────────────
 
-  /**
-   * Set terminal grid dimensions and resize the canvas to fit.
-   */
   setDimensions(cols: number, rows: number): void {
     this.cols = cols;
     this.rows = rows;
@@ -90,24 +83,18 @@ export class CanvasRenderer {
     const logicalWidth = cols * this.cellWidth;
     const logicalHeight = rows * this.cellHeight;
 
-    // Set CSS (logical) size.
     this.canvas.style.width = `${logicalWidth}px`;
     this.canvas.style.height = `${logicalHeight}px`;
 
-    // Set physical (device pixel) size.
     this.canvas.width = Math.round(logicalWidth * this.dpr);
     this.canvas.height = Math.round(logicalHeight * this.dpr);
 
-    // Scale the context for HiDPI.
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-
-    // Font must be re-set after canvas resize.
+    this.lastFont = "";
+    this.lastFillPacked = -1;
     this.applyFont(false, false);
   }
 
-  /**
-   * Render a complete frame: clear the canvas and draw all cells.
-   */
   renderFullFrame(cells: ArrayBuffer | Uint8Array, cols: number, rows: number): void {
     if (this.cols !== cols || this.rows !== rows) {
       this.setDimensions(cols, rows);
@@ -115,38 +102,29 @@ export class CanvasRenderer {
 
     const data = cells instanceof Uint8Array ? cells : new Uint8Array(cells);
 
-    // Clear entire canvas with default background.
     this.ctx.fillStyle = DEFAULT_BG;
+    this.lastFillPacked = DEFAULT_BG_PACKED;
     this.ctx.fillRect(0, 0, this.cols * this.cellWidth, this.rows * this.cellHeight);
 
     for (let y = 0; y < rows; y++) {
       const rowOffset = y * cols * CELL_SIZE;
-      const rowData = data.subarray(rowOffset, rowOffset + cols * CELL_SIZE);
-      this.drawRow(rowData, y, cols);
+      this.drawRow(data, rowOffset, y, cols);
     }
-
   }
 
-  /**
-   * Render only the rows that have changed since the last frame.
-   */
   renderDirtyRows(rows: Array<{ y: number; cells: ArrayBuffer | Uint8Array }>): void {
     for (const row of rows) {
       const data = row.cells instanceof Uint8Array ? row.cells : new Uint8Array(row.cells);
       const rowCols = data.byteLength / CELL_SIZE;
 
-      // Clear just this row.
       const yPx = row.y * this.cellHeight;
-      this.ctx.fillStyle = DEFAULT_BG;
+      this.setFill(0, 0, 0);
       this.ctx.fillRect(0, yPx, this.cols * this.cellWidth, this.cellHeight);
 
-      this.drawRow(data, row.y, rowCols);
+      this.drawRow(data, 0, row.y, rowCols);
     }
   }
 
-  /**
-   * Draw the cursor at the given grid position.
-   */
   renderCursor(row: number, col: number, shape: string, visible: boolean): void {
     if (!visible || shape === "hidden") {
       return;
@@ -155,25 +133,21 @@ export class CanvasRenderer {
     const x = col * this.cellWidth;
     const y = row * this.cellHeight;
 
-    this.ctx.fillStyle = DEFAULT_FG;
+    this.setFill(255, 255, 255);
 
     switch (shape) {
       case "block":
-        // Semi-transparent filled block so text shows through.
         this.ctx.globalAlpha = 0.5;
         this.ctx.fillRect(x, y, this.cellWidth, this.cellHeight);
         this.ctx.globalAlpha = 1.0;
         break;
       case "underline":
-        // 2px line at the bottom of the cell.
         this.ctx.fillRect(x, y + this.cellHeight - 2, this.cellWidth, 2);
         break;
       case "bar":
-        // 2px vertical bar on the left of the cell.
         this.ctx.fillRect(x, y, 2, this.cellHeight);
         break;
       default:
-        // Default to block.
         this.ctx.globalAlpha = 0.5;
         this.ctx.fillRect(x, y, this.cellWidth, this.cellHeight);
         this.ctx.globalAlpha = 1.0;
@@ -181,18 +155,12 @@ export class CanvasRenderer {
     }
   }
 
-  /**
-   * Return the current cell dimensions in CSS pixels.
-   */
   getCellSize(): { width: number; height: number } {
     return { width: this.cellWidth, height: this.cellHeight };
   }
 
   // ── Private methods ────────────────────────────────────────────────────
 
-  /**
-   * Measure and cache font metrics.
-   */
   private measureFont(): void {
     const metrics: FontMetrics = measureFontMetrics(this.fontFamily, this.fontSize, this.ctx);
     this.cellWidth = metrics.cellWidth;
@@ -200,167 +168,167 @@ export class CanvasRenderer {
     this.ascent = metrics.ascent;
   }
 
-  /**
-   * Decode a single cell from binary data at the given byte offset.
-   */
-  private decodeCell(data: Uint8Array, offset: number): DecodedCell {
-    // Codepoint: u32 little-endian at bytes 0-3.
-    const cp =
-      data[offset] |
-      (data[offset + 1] << 8) |
-      (data[offset + 2] << 16) |
-      ((data[offset + 3] << 24) >>> 0); // >>> 0 to keep as unsigned
-
-    const flags = data[offset + 10];
-
-    const inverse = (flags & FLAG_INVERSE) !== 0;
-
-    // Read raw colors.
-    let fgR = data[offset + 4];
-    let fgG = data[offset + 5];
-    let fgB = data[offset + 6];
-    let bgR = data[offset + 7];
-    let bgG = data[offset + 8];
-    let bgB = data[offset + 9];
-
-    // Swap if inverse.
-    if (inverse) {
-      [fgR, bgR] = [bgR, fgR];
-      [fgG, bgG] = [bgG, fgG];
-      [fgB, bgB] = [bgB, fgB];
-    }
-
-    return {
-      codepoint: cp >>> 0, // Ensure unsigned
-      char: cp === 0 ? " " : String.fromCodePoint(cp >>> 0),
-      fgR,
-      fgG,
-      fgB,
-      bgR,
-      bgG,
-      bgB,
-      bold: (flags & FLAG_BOLD) !== 0,
-      italic: (flags & FLAG_ITALIC) !== 0,
-      underline: (flags & FLAG_UNDERLINE) !== 0,
-      strikethrough: (flags & FLAG_STRIKETHROUGH) !== 0,
-      inverse,
-      dim: (flags & FLAG_DIM) !== 0,
-      hidden: (flags & FLAG_HIDDEN) !== 0,
-      width: data[offset + 11],
-    };
+  private buildFontStrings(): void {
+    const base = `${this.fontSize}px ${this.fontFamily}`;
+    this.fontNormal = base;
+    this.fontBold = `bold ${base}`;
+    this.fontItalic = `italic ${base}`;
+    this.fontBoldItalic = `italic bold ${base}`;
   }
 
   /**
-   * Draw a complete row of cells.
+   * Draw a row directly from binary cell data without allocating DecodedCell objects.
    *
-   * Rendering proceeds in three passes:
-   *   1. Background pass  -- filled rectangles for non-default bg colors.
-   *   2. Text pass         -- grouped into style-contiguous runs for ligatures.
-   *   3. Decoration pass   -- underlines and strikethroughs.
+   * Three passes: backgrounds, text runs, decorations.
    */
-  private drawRow(cells: Uint8Array, y: number, cols: number): void {
-    const decoded: DecodedCell[] = new Array(cols);
-    for (let c = 0; c < cols; c++) {
-      decoded[c] = this.decodeCell(cells, c * CELL_SIZE);
-    }
-
+  private drawRow(data: Uint8Array, dataOffset: number, y: number, cols: number): void {
     const yPx = y * this.cellHeight;
+    const cw = this.cellWidth;
+    const ch = this.cellHeight;
 
     // ── Pass 1: Backgrounds ──────────────────────────────────────────
     for (let c = 0; c < cols; c++) {
-      const cell = decoded[c];
-      if (cell.width === 0) continue; // Spacer (second half of wide char)
+      const off = dataOffset + c * CELL_SIZE;
+      const width = data[off + 11];
+      if (width === 0) continue;
 
-      const bgColor = `rgb(${cell.bgR},${cell.bgG},${cell.bgB})`;
-      if (bgColor !== DEFAULT_BG) {
-        const xPx = c * this.cellWidth;
-        const w = cell.width === 2 ? this.cellWidth * 2 : this.cellWidth;
-        this.ctx.fillStyle = bgColor;
-        this.ctx.fillRect(xPx, yPx, w, this.cellHeight);
+      const flags = data[off + 10];
+      const inverse = (flags & FLAG_INVERSE) !== 0;
+
+      let bgR: number, bgG: number, bgB: number;
+      if (inverse) {
+        bgR = data[off + 4];
+        bgG = data[off + 5];
+        bgB = data[off + 6];
+      } else {
+        bgR = data[off + 7];
+        bgG = data[off + 8];
+        bgB = data[off + 9];
+      }
+
+      const packed = (bgR << 16) | (bgG << 8) | bgB;
+      if (packed !== DEFAULT_BG_PACKED) {
+        const xPx = c * cw;
+        const w = width === 2 ? cw * 2 : cw;
+        this.setFill(bgR, bgG, bgB);
+        this.ctx.fillRect(xPx, yPx, w, ch);
       }
     }
 
-    // ── Pass 2: Text (grouped into runs) ─────────────────────────────
+    // ── Pass 2: Text (grouped into style-contiguous runs) ───────────
     let runStart = -1;
     let runText = "";
-    let runFg = "";
+    let runFgR = 0;
+    let runFgG = 0;
+    let runFgB = 0;
     let runBold = false;
     let runItalic = false;
     let runDim = false;
 
     const flushRun = (): void => {
       if (runStart < 0 || runText.length === 0) return;
-      this.drawTextRun(runText, runStart, y, runFg, runBold, runItalic, runDim);
+      this.drawTextRun(runText, runStart, y, runFgR, runFgG, runFgB, runBold, runItalic, runDim);
       runText = "";
       runStart = -1;
     };
 
     for (let c = 0; c < cols; c++) {
-      const cell = decoded[c];
+      const off = dataOffset + c * CELL_SIZE;
+      const width = data[off + 11];
+      if (width === 0) continue;
 
-      // Skip spacer cells (width 0) and hidden cells.
-      if (cell.width === 0) continue;
-      if (cell.hidden) {
+      const flags = data[off + 10];
+      if ((flags & FLAG_HIDDEN) !== 0) {
         flushRun();
         continue;
       }
 
-      const fg = `rgb(${cell.fgR},${cell.fgG},${cell.fgB})`;
+      const inverse = (flags & FLAG_INVERSE) !== 0;
+      let fgR: number, fgG: number, fgB: number;
+      if (inverse) {
+        fgR = data[off + 7];
+        fgG = data[off + 8];
+        fgB = data[off + 9];
+      } else {
+        fgR = data[off + 4];
+        fgG = data[off + 5];
+        fgB = data[off + 6];
+      }
+
+      const bold = (flags & FLAG_BOLD) !== 0;
+      const italic = (flags & FLAG_ITALIC) !== 0;
+      const dim = (flags & FLAG_DIM) !== 0;
+
       const sameStyle =
-        fg === runFg && cell.bold === runBold && cell.italic === runItalic && cell.dim === runDim;
+        fgR === runFgR &&
+        fgG === runFgG &&
+        fgB === runFgB &&
+        bold === runBold &&
+        italic === runItalic &&
+        dim === runDim;
+
+      // Decode codepoint.
+      const cp =
+        data[off] | (data[off + 1] << 8) | (data[off + 2] << 16) | ((data[off + 3] << 24) >>> 0);
+      const ch0 = cp === 0 ? " " : String.fromCodePoint(cp >>> 0);
 
       if (sameStyle && runStart >= 0) {
-        // Extend the current run.
-        runText += cell.char;
+        runText += ch0;
       } else {
-        // Style break -- flush previous run, start a new one.
         flushRun();
         runStart = c;
-        runText = cell.char;
-        runFg = fg;
-        runBold = cell.bold;
-        runItalic = cell.italic;
-        runDim = cell.dim;
+        runText = ch0;
+        runFgR = fgR;
+        runFgG = fgG;
+        runFgB = fgB;
+        runBold = bold;
+        runItalic = italic;
+        runDim = dim;
       }
     }
     flushRun();
 
     // ── Pass 3: Decorations ──────────────────────────────────────────
     for (let c = 0; c < cols; c++) {
-      const cell = decoded[c];
-      if (cell.width === 0) continue;
+      const off = dataOffset + c * CELL_SIZE;
+      const width = data[off + 11];
+      if (width === 0) continue;
 
-      const xPx = c * this.cellWidth;
-      const w = cell.width === 2 ? this.cellWidth * 2 : this.cellWidth;
+      const flags = data[off + 10];
+      const hasUnderline = (flags & FLAG_UNDERLINE) !== 0;
+      const hasStrikethrough = (flags & FLAG_STRIKETHROUGH) !== 0;
+      if (!hasUnderline && !hasStrikethrough) continue;
 
-      if (cell.underline) {
-        const lineY = yPx + this.ascent + 2;
-        this.ctx.fillStyle = `rgb(${cell.fgR},${cell.fgG},${cell.fgB})`;
-        this.ctx.fillRect(xPx, lineY, w, 1);
+      const inverse = (flags & FLAG_INVERSE) !== 0;
+      const fgR = inverse ? data[off + 7] : data[off + 4];
+      const fgG = inverse ? data[off + 8] : data[off + 5];
+      const fgB = inverse ? data[off + 9] : data[off + 6];
+
+      const xPx = c * cw;
+      const w = width === 2 ? cw * 2 : cw;
+
+      this.setFill(fgR, fgG, fgB);
+
+      if (hasUnderline) {
+        this.ctx.fillRect(xPx, yPx + this.ascent + 2, w, 1);
       }
 
-      if (cell.strikethrough) {
-        const lineY = yPx + Math.round(this.ascent * 0.55);
-        this.ctx.fillStyle = `rgb(${cell.fgR},${cell.fgG},${cell.fgB})`;
-        this.ctx.fillRect(xPx, lineY, w, 1);
+      if (hasStrikethrough) {
+        this.ctx.fillRect(xPx, yPx + Math.round(this.ascent * 0.55), w, 1);
       }
     }
   }
 
-  /**
-   * Draw a contiguous text run with a single fillText call.
-   *
-   * Issuing one fillText per run (rather than per character) allows the
-   * browser's text shaper to apply ligatures within the run.
-   */
   private drawTextRun(
     text: string,
     col: number,
     row: number,
-    fg: string,
+    fgR: number,
+    fgG: number,
+    fgB: number,
     bold: boolean,
     italic: boolean,
-    dim: boolean = false,
+    dim: boolean,
   ): void {
     this.applyFont(bold, italic);
 
@@ -368,7 +336,7 @@ export class CanvasRenderer {
       this.ctx.globalAlpha = 0.5;
     }
 
-    this.ctx.fillStyle = fg;
+    this.setFill(fgR, fgG, fgB);
     const xPx = col * this.cellWidth;
     const yPx = row * this.cellHeight + this.ascent;
     this.ctx.fillText(text, xPx, yPx);
@@ -378,12 +346,29 @@ export class CanvasRenderer {
     }
   }
 
-  /**
-   * Set ctx.font to match the requested style.
-   */
   private applyFont(bold: boolean, italic: boolean): void {
-    const weight = bold ? "bold " : "";
-    const style = italic ? "italic " : "";
-    this.ctx.font = `${style}${weight}${this.fontSize}px ${this.fontFamily}`;
+    let font: string;
+    if (bold && italic) {
+      font = this.fontBoldItalic;
+    } else if (bold) {
+      font = this.fontBold;
+    } else if (italic) {
+      font = this.fontItalic;
+    } else {
+      font = this.fontNormal;
+    }
+
+    if (font !== this.lastFont) {
+      this.ctx.font = font;
+      this.lastFont = font;
+    }
+  }
+
+  private setFill(r: number, g: number, b: number): void {
+    const packed = (r << 16) | (g << 8) | b;
+    if (packed !== this.lastFillPacked) {
+      this.ctx.fillStyle = `rgb(${r},${g},${b})`;
+      this.lastFillPacked = packed;
+    }
   }
 }

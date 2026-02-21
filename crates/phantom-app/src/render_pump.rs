@@ -46,7 +46,6 @@ pub fn start_render_pump(
 
             for event in events {
                 let is_exited = matches!(event, TerminalEvent::Exited { .. });
-                // Send each event to the frontend. Ignore errors (channel closed).
                 let _ = channel.send(event);
                 if is_exited {
                     return;
@@ -65,6 +64,10 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
         Err(_) => return events, // Poisoned lock.
     };
 
+    // Snapshot and clear the PTY data flag.
+    let had_pty_data = state.has_pty_data;
+    state.has_pty_data = false;
+
     // Get cursor state.
     let cursor = state.session.vt().cursor();
     let cursor_row = cursor.row;
@@ -73,7 +76,6 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
     let cursor_visible = cursor.visible;
 
     if state.needs_full_frame {
-        // Send a full frame.
         let screen = state.session.vt().screen();
         let cols = screen.cols();
         let rows = screen.rows();
@@ -82,7 +84,6 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
             cells.extend_from_slice(&encode_row(&screen, row));
         }
 
-        // Reset damage tracking since we just sent everything.
         let _ = state.session.vt_mut().damage();
         state.session.vt_mut().reset_damage();
         state.needs_full_frame = false;
@@ -97,11 +98,9 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
             cursor_visible,
         });
     } else {
-        // Check for incremental damage.
         let damage = state.session.vt_mut().damage();
         match damage {
             DamageInfo::Full => {
-                // Full damage means the entire screen changed; send a full frame.
                 let screen = state.session.vt().screen();
                 let cols = screen.cols();
                 let rows = screen.rows();
@@ -122,19 +121,28 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
                 });
             }
             DamageInfo::Partial(damaged_rows) => {
-                if !damaged_rows.is_empty() {
+                // Suppress cursor-only damage when idle. alacritty always marks
+                // the cursor row dirty (for blink support). If no PTY data
+                // arrived since the last tick, skip encoding + sending.
+                let only_cursor = !had_pty_data
+                    && damaged_rows.len() == 1
+                    && damaged_rows[0].row == cursor_row;
+
+                if !damaged_rows.is_empty() && !only_cursor {
                     let screen = state.session.vt().screen();
                     let mut dirty_rows = Vec::with_capacity(damaged_rows.len());
 
-                    // Deduplicate rows (a row may appear multiple times in the damage list).
-                    let mut seen = std::collections::HashSet::new();
-                    for d in &damaged_rows {
-                        if seen.insert(d.row) {
-                            dirty_rows.push(DirtyRow {
-                                y: d.row,
-                                cells: encode_row(&screen, d.row),
-                            });
-                        }
+                    // Deduplicate rows using a sorted dedup instead of HashSet.
+                    let mut row_indices: Vec<u16> =
+                        damaged_rows.iter().map(|d| d.row).collect();
+                    row_indices.sort_unstable();
+                    row_indices.dedup();
+
+                    for row_idx in row_indices {
+                        dirty_rows.push(DirtyRow {
+                            y: row_idx,
+                            cells: encode_row(&screen, row_idx),
+                        });
                     }
 
                     state.session.vt_mut().reset_damage();
@@ -153,7 +161,7 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
         }
     }
 
-    // Check for title changes.
+    // Read title, bell, and PTY writes in one lock acquisition on EventProxy.
     let current_title = state.session.title().map(|s| s.to_string());
     if current_title != state.last_title {
         let title = current_title.clone().unwrap_or_default();
@@ -161,12 +169,10 @@ fn extract_events(session_state: &Arc<Mutex<SessionState>>) -> Vec<TerminalEvent
         state.last_title = current_title;
     }
 
-    // Check for bell.
     if state.session.vt_mut().has_bell() {
         events.push(TerminalEvent::Bell);
     }
 
-    // Check if the process has exited.
     if !state.session.is_alive() {
         let code = state.session.exit_code();
         events.push(TerminalEvent::Exited { code });

@@ -43,6 +43,7 @@ pub async fn create_terminal(
         session,
         needs_full_frame: true,
         last_title: None,
+        has_pty_data: false,
     }));
 
     // Create stop channels for I/O thread and render pump.

@@ -15,6 +15,10 @@ pub struct SessionState {
     pub needs_full_frame: bool,
     /// Cached title from the last render pump tick, used to detect changes.
     pub last_title: Option<String>,
+    /// Set by the I/O thread after writing PTY data; cleared by the render pump.
+    /// Used to suppress DirtyRows events when only the cursor row is damaged
+    /// (alacritty always marks the cursor row dirty for blink support).
+    pub has_pty_data: bool,
 }
 
 /// Global app state managed by Tauri.

@@ -2,19 +2,23 @@
  * SolidJS component that wraps the Canvas2D terminal renderer.
  *
  * Watches a persistent cell buffer and frameVersion counter to trigger
- * re-renders. The cell buffer is always complete (FullFrame replaces,
- * DirtyRows patches in-place in the store).
+ * re-renders. Uses dirty row indices for incremental repainting when
+ * available, falling back to full frame for resizes and initial render.
  */
 
 import { createEffect, createSignal, onCleanup, onMount, type Component } from "solid-js";
 import { CanvasRenderer } from "../renderer/canvas-renderer";
 import { calculateDimensions } from "../renderer/font-metrics";
 
+const CELL_SIZE = 16;
+
 export interface TerminalCanvasProps {
   cols: number;
   rows: number;
   cells?: Uint8Array;
   frameVersion: number;
+  /** Row indices that changed, or null/undefined for full frame. */
+  dirtyRowIndices?: number[] | null;
   cursorRow: number;
   cursorCol: number;
   cursorShape: string;
@@ -33,7 +37,6 @@ const TerminalCanvas: Component<TerminalCanvasProps> = (props) => {
     r.setDimensions(props.cols, props.rows);
     setRenderer(r);
 
-    // Set up ResizeObserver on the canvas parent to detect container resizes.
     const parent = canvasRef.parentElement;
     if (parent && props.onResize) {
       const observer = new ResizeObserver((entries) => {
@@ -61,22 +64,32 @@ const TerminalCanvas: Component<TerminalCanvasProps> = (props) => {
     }
   });
 
-  // Re-render when frameVersion changes (covers both FullFrame and DirtyRows).
   createEffect(() => {
     const r = renderer();
     const cells = props.cells;
-    const version = props.frameVersion; // Track frameVersion to re-run on every update.
+    const version = props.frameVersion;
     void version;
 
-    if (r && cells && cells.byteLength > 0) {
-      r.renderFullFrame(cells, props.cols, props.rows);
-      r.renderCursor(props.cursorRow, props.cursorCol, props.cursorShape, props.cursorVisible);
-    }
-  });
+    if (!r || !cells || cells.byteLength === 0) return;
 
-  // Note: dimensions are handled by renderFullFrame() which calls
-  // setDimensions() when cols/rows change. A separate effect would
-  // clear the canvas AFTER rendering due to effect ordering.
+    const dirty = props.dirtyRowIndices;
+
+    if (dirty != null && dirty.length > 0) {
+      // Incremental: only repaint changed rows.
+      const rowBytes = props.cols * CELL_SIZE;
+      r.renderDirtyRows(
+        dirty.map((y) => ({
+          y,
+          cells: cells.subarray(y * rowBytes, (y + 1) * rowBytes),
+        })),
+      );
+    } else {
+      // Full frame: resize or initial render.
+      r.renderFullFrame(cells, props.cols, props.rows);
+    }
+
+    r.renderCursor(props.cursorRow, props.cursorCol, props.cursorShape, props.cursorVisible);
+  });
 
   return (
     <canvas

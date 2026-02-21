@@ -95,6 +95,7 @@ const Terminal: Component = () => {
             rows={session().rows}
             cells={session().cells ?? undefined}
             frameVersion={session().frameVersion}
+            dirtyRowIndices={session().dirtyRowIndices}
             cursorRow={session().cursorRow}
             cursorCol={session().cursorCol}
             cursorShape={session().cursorShape}
