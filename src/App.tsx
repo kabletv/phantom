@@ -1,7 +1,18 @@
+import Terminal from "./components/Terminal";
+
 function App() {
   return (
-    <div>
-      <h1>Phantom Terminal</h1>
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        "flex-direction": "column",
+        overflow: "hidden",
+        background: "#000",
+      }}
+    >
+      <Terminal />
     </div>
   );
 }
