@@ -10,6 +10,7 @@ mod state;
 
 use state::AppState;
 use std::path::PathBuf;
+use tauri_plugin_updater::UpdaterExt;
 
 fn main() {
     // Verify git is available on PATH before doing anything else.
@@ -37,9 +38,17 @@ fn main() {
     let scheduler_repo = app_state.repo_path.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(app_state)
         .setup(move |app| {
             scheduler::start_scheduler(app.handle().clone(), scheduler_db, scheduler_repo);
+            // Check for updates in the background.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = check_for_updates(handle).await {
+                    log::warn!("Update check failed: {e}");
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -61,6 +70,29 @@ fn main() {
         // Devtools can be opened with right-click > Inspect Element in debug builds.
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Check GitHub releases for a newer version and install it.
+async fn check_for_updates(app: tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let updater = app.updater().map_err(|e| format!("updater init: {e}"))?;
+    match updater.check().await {
+        Ok(Some(update)) => {
+            log::info!(
+                "Update available: {} -> {}",
+                update.current_version,
+                update.version
+            );
+            update.download_and_install(|_, _| {}, || {}).await?;
+            log::info!("Update installed, will apply on next restart");
+        }
+        Ok(None) => {
+            log::info!("App is up to date");
+        }
+        Err(e) => {
+            log::warn!("Update check error: {e}");
+        }
+    }
+    Ok(())
 }
 
 /// Fallback directory when current_dir() fails.
