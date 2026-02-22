@@ -5,6 +5,7 @@ import { useWorkspace } from "../stores/workspace";
 import { SkeletonList } from "./ui/Skeleton";
 
 const navItems = [
+  { to: "/repos", label: "Repos", icon: "&" },
   { to: "/terminal", label: "Terminal", icon: "\u203a" },
   { to: "/launcher", label: "Launcher", icon: "$" },
   { to: "/dashboard", label: "Dashboard", icon: "#" },

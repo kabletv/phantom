@@ -65,6 +65,7 @@ export async function createTerminal(
   cols: number,
   rows: number,
   onEvent: (event: TerminalEvent) => void,
+  workingDir?: string,
 ): Promise<SessionId> {
   const channel = new Channel<TerminalEvent>();
   channel.onmessage = onEvent;
@@ -73,6 +74,7 @@ export async function createTerminal(
     cols,
     rows,
     channel,
+    workingDir: workingDir ?? null,
   });
 }
 

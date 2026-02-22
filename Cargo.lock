@@ -2499,6 +2499,8 @@ name = "phantom-git"
 version = "0.1.0"
 dependencies = [
  "notify",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

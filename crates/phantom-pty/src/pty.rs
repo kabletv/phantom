@@ -47,7 +47,8 @@ impl PtyHandle {
     /// Spawn a new PTY with the given shell command and dimensions.
     ///
     /// If `shell` is `None`, uses the user's default shell (`$SHELL` or `/bin/sh`).
-    pub fn spawn(shell: Option<&str>, cols: u16, rows: u16) -> Result<Self, PtyError> {
+    /// If `working_dir` is provided, the shell starts in that directory.
+    pub fn spawn(shell: Option<&str>, cols: u16, rows: u16, working_dir: Option<&str>) -> Result<Self, PtyError> {
         let pty_system = native_pty_system();
 
         let pair = pty_system
@@ -59,13 +60,17 @@ impl PtyHandle {
             })
             .map_err(|e| PtyError::SpawnFailed(format!("failed to open PTY: {e}")))?;
 
-        let cmd = match shell {
+        let mut cmd = match shell {
             Some(s) => CommandBuilder::new(s),
             None => {
                 let shell_path = default_shell();
                 CommandBuilder::new(shell_path)
             }
         };
+
+        if let Some(dir) = working_dir {
+            cmd.cwd(dir);
+        }
 
         let child = pair
             .slave
@@ -168,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_spawn_pty() {
-        let handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24);
+        let handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24, None);
         assert!(handle.is_ok(), "Failed to spawn PTY: {:?}", handle.err());
         let mut handle = handle.unwrap();
         assert!(handle.is_alive());
@@ -176,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_write_read_echo() {
-        let mut handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24).unwrap();
+        let mut handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24, None).unwrap();
 
         // Write a command that echoes a known string.
         handle.write(b"echo PHANTOM_TEST_OK\n").unwrap();
@@ -215,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_resize() {
-        let handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24).unwrap();
+        let handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24, None).unwrap();
         let result = handle.resize(120, 40);
         assert!(result.is_ok(), "Resize failed: {:?}", result.err());
     }
@@ -223,7 +228,7 @@ mod tests {
     #[test]
     fn test_child_exit() {
         // Spawn a shell that exits immediately via -c flag (no interactive prompt).
-        let mut handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24).unwrap();
+        let mut handle = PtyHandle::spawn(Some("/bin/sh"), 80, 24, None).unwrap();
         handle.write(b"exit 0\n").unwrap();
 
         // The PTY reader blocks, so we drain it in a background thread.

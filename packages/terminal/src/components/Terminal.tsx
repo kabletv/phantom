@@ -17,6 +17,7 @@ const DEFAULT_FONT_SIZE = 14;
 
 interface TerminalProps {
   command?: string;
+  workingDir?: string;
 }
 
 const Terminal: Component<TerminalProps> = (props) => {
@@ -38,7 +39,7 @@ const Terminal: Component<TerminalProps> = (props) => {
     const rows = Math.max(dims.rows, 2);
 
     try {
-      const id = await createTerminal(null, cols, rows, handleEvent);
+      const id = await createTerminal(null, cols, rows, handleEvent, props.workingDir);
       setSessionId(id);
       setInitialized(true);
       containerRef.focus();

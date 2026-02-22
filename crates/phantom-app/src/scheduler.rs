@@ -134,7 +134,7 @@ pub fn start_scheduler(
     // Tokio task: process git events and trigger analyses
     let db_clone = db.clone();
     let repo_clone = repo_path.clone();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let mut last_main_sha = get_main_sha_async(repo_clone.clone()).await;
 
         loop {

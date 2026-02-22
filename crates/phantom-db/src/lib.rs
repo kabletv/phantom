@@ -1,5 +1,7 @@
 pub mod analyses;
 pub mod presets;
+pub mod projects;
+pub mod repositories;
 pub mod schema;
 pub mod settings;
 
@@ -8,6 +10,8 @@ use std::path::Path;
 
 pub use analyses::Analysis;
 pub use presets::{AnalysisPreset, CliPreset};
+pub use projects::Project;
+pub use repositories::Repository;
 
 pub fn open(path: &Path) -> rusqlite::Result<Connection> {
     let conn = Connection::open(path)?;

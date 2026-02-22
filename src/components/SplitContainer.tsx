@@ -22,7 +22,7 @@ function PaneView({ pane }: { pane: Pane }) {
         outlineOffset: "-1px",
       }}
     >
-      <TerminalIsland command={pane.command} />
+      <TerminalIsland command={pane.command} workingDir={pane.workingDir} />
     </div>
   );
 }

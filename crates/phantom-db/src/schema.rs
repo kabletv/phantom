@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 /// Current schema version. Bump this when adding migrations.
-const CURRENT_VERSION: i64 = 3;
+const CURRENT_VERSION: i64 = 4;
 
 pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
     // Create base tables (idempotent)
@@ -118,6 +118,38 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
                 "ALTER TABLE cli_presets ADD COLUMN budget_usd REAL;",
             )?;
         }
+
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_version (version) VALUES (?1)",
+            [3_i64],
+        )?;
+    }
+
+    if version < 4 {
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS repositories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                github_owner TEXT NOT NULL,
+                github_name TEXT NOT NULL,
+                github_url TEXT NOT NULL,
+                local_path TEXT NOT NULL,
+                default_branch TEXT NOT NULL DEFAULT 'main',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(github_owner, github_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                repo_id INTEGER NOT NULL REFERENCES repositories(id),
+                name TEXT NOT NULL,
+                branch TEXT NOT NULL,
+                worktree_path TEXT NOT NULL,
+                sandbox_profile TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            ",
+        )?;
 
         conn.execute(
             "INSERT OR REPLACE INTO schema_version (version) VALUES (?1)",

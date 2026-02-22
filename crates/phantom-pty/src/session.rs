@@ -29,8 +29,9 @@ impl TerminalSession {
         shell: Option<&str>,
         cols: u16,
         rows: u16,
+        working_dir: Option<&str>,
     ) -> Result<Self, PtyError> {
-        let pty = PtyHandle::spawn(shell, cols, rows)?;
+        let pty = PtyHandle::spawn(shell, cols, rows, working_dir)?;
         let vt = VtTerminal::new(cols, rows);
 
         Ok(Self {
@@ -163,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_create_session() {
-        let session = TerminalSession::new(1, Some("/bin/sh"), 80, 24);
+        let session = TerminalSession::new(1, Some("/bin/sh"), 80, 24, None);
         assert!(session.is_ok(), "Failed to create session: {:?}", session.err());
         let mut session = session.unwrap();
         assert_eq!(session.id(), 1);
@@ -172,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_session_write_and_process() {
-        let mut session = TerminalSession::new(1, Some("/bin/sh"), 80, 24).unwrap();
+        let mut session = TerminalSession::new(1, Some("/bin/sh"), 80, 24, None).unwrap();
 
         // Write input to the shell.
         session.write_input(b"echo SESS_TEST\n").unwrap();
@@ -213,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_session_resize() {
-        let mut session = TerminalSession::new(1, Some("/bin/sh"), 80, 24).unwrap();
+        let mut session = TerminalSession::new(1, Some("/bin/sh"), 80, 24, None).unwrap();
 
         let result = session.resize(120, 40);
         assert!(result.is_ok(), "Resize failed: {:?}", result.err());
@@ -225,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_session_exit() {
-        let mut session = TerminalSession::new(1, Some("/bin/sh"), 80, 24).unwrap();
+        let mut session = TerminalSession::new(1, Some("/bin/sh"), 80, 24, None).unwrap();
 
         session.write_input(b"exit 0\n").unwrap();
 

@@ -4,6 +4,8 @@ import Terminal from "./components/Terminal";
 export interface MountOptions {
   /** Shell command to execute after session creation (e.g., "claude --model opus"). */
   command?: string;
+  /** Working directory for the PTY shell process. */
+  workingDir?: string;
 }
 
 /**
@@ -11,6 +13,6 @@ export interface MountOptions {
  * Returns a dispose function to unmount.
  */
 export function mountTerminal(container: HTMLElement, options?: MountOptions): () => void {
-  const dispose = render(() => Terminal({ command: options?.command }), container);
+  const dispose = render(() => Terminal({ command: options?.command, workingDir: options?.workingDir }), container);
   return dispose;
 }

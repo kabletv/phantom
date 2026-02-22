@@ -7,6 +7,8 @@ export interface Pane {
   title: string;
   /** Shell command to execute after session creation (e.g., "claude --model opus"). */
   command?: string;
+  /** Working directory for the PTY shell process. */
+  workingDir?: string;
 }
 
 export interface Split {
@@ -27,12 +29,13 @@ function genId(): string {
   return `pane-${nextId++}`;
 }
 
-function createPane(options?: { title?: string; command?: string }): Pane {
+function createPane(options?: { title?: string; command?: string; workingDir?: string }): Pane {
   return {
     id: genId(),
     type: "terminal",
     title: options?.title ?? "Terminal",
     command: options?.command,
+    workingDir: options?.workingDir,
   };
 }
 
@@ -45,7 +48,7 @@ interface TerminalLayoutState {
   updatePaneSession: (paneId: string, sessionId: number) => void;
   updateSplitSizes: (splitId: string, sizes: number[]) => void;
   /** Add a new pane by splitting the active pane. Returns the new pane ID. */
-  addPane: (options?: { title?: string; command?: string }) => string;
+  addPane: (options?: { title?: string; command?: string; workingDir?: string }) => string;
 }
 
 function findAndReplace(

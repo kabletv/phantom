@@ -27,9 +27,10 @@ impl Multiplexer {
         shell: Option<&str>,
         cols: u16,
         rows: u16,
+        working_dir: Option<&str>,
     ) -> Result<SessionId, PtyError> {
         let id = self.next_id;
-        let session = TerminalSession::new(id, shell, cols, rows)?;
+        let session = TerminalSession::new(id, shell, cols, rows, working_dir)?;
         self.sessions.insert(id, session);
         self.next_id += 1;
         Ok(id)
@@ -99,8 +100,8 @@ mod tests {
     fn test_create_and_list_sessions() {
         let mut mux = Multiplexer::new();
 
-        let id1 = mux.create_session(Some("/bin/sh"), 80, 24).unwrap();
-        let id2 = mux.create_session(Some("/bin/sh"), 80, 24).unwrap();
+        let id1 = mux.create_session(Some("/bin/sh"), 80, 24, None).unwrap();
+        let id2 = mux.create_session(Some("/bin/sh"), 80, 24, None).unwrap();
 
         assert_ne!(id1, id2);
         assert_eq!(mux.list_sessions(), vec![id1, id2]);
@@ -109,7 +110,7 @@ mod tests {
     #[test]
     fn test_get_session() {
         let mut mux = Multiplexer::new();
-        let id = mux.create_session(Some("/bin/sh"), 80, 24).unwrap();
+        let id = mux.create_session(Some("/bin/sh"), 80, 24, None).unwrap();
 
         assert!(mux.get_session(id).is_some());
         assert!(mux.get_session_mut(id).is_some());
@@ -119,7 +120,7 @@ mod tests {
     #[test]
     fn test_close_session() {
         let mut mux = Multiplexer::new();
-        let id = mux.create_session(Some("/bin/sh"), 80, 24).unwrap();
+        let id = mux.create_session(Some("/bin/sh"), 80, 24, None).unwrap();
 
         assert!(mux.get_session(id).is_some());
         mux.close_session(id);
@@ -137,9 +138,9 @@ mod tests {
     #[test]
     fn test_session_ids_increment() {
         let mut mux = Multiplexer::new();
-        let id1 = mux.create_session(Some("/bin/sh"), 80, 24).unwrap();
-        let id2 = mux.create_session(Some("/bin/sh"), 80, 24).unwrap();
-        let id3 = mux.create_session(Some("/bin/sh"), 80, 24).unwrap();
+        let id1 = mux.create_session(Some("/bin/sh"), 80, 24, None).unwrap();
+        let id2 = mux.create_session(Some("/bin/sh"), 80, 24, None).unwrap();
+        let id3 = mux.create_session(Some("/bin/sh"), 80, 24, None).unwrap();
 
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);

@@ -3,14 +3,15 @@ import { mountTerminal } from "@phantom/terminal";
 
 interface TerminalIslandProps {
   command?: string;
+  workingDir?: string;
 }
 
-export function TerminalIsland({ command }: TerminalIslandProps) {
+export function TerminalIsland({ command, workingDir }: TerminalIslandProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const dispose = mountTerminal(containerRef.current, { command });
+    const dispose = mountTerminal(containerRef.current, { command, workingDir });
     return () => dispose();
   }, []);
 

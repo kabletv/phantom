@@ -4,15 +4,18 @@ import { Sidebar } from "./Sidebar";
 import { StatusBarReact } from "./StatusBarReact";
 import { ToastContainer } from "./ui/Toast";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
-import { TerminalIsland } from "./TerminalIsland";
+import { SplitContainer } from "./SplitContainer";
+import { useTerminalLayout } from "../stores/terminal-layout";
+import { api } from "../lib/api";
 
-const VIEW_ROUTES = ["/terminal", "/dashboard", "/diagrams", "/launcher"] as const;
+const VIEW_ROUTES = ["/terminal", "/repos", "/dashboard", "/diagrams", "/launcher"] as const;
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [transitioning, setTransitioning] = useState(false);
   const prevPath = useRef(location.pathname);
+  const addPane = useTerminalLayout((s) => s.addPane);
 
   const isTerminalRoute = location.pathname === "/terminal";
 
@@ -26,12 +29,12 @@ export function Layout() {
     }
   }, [location.pathname]);
 
-  // Global keyboard shortcuts: Cmd+1/2/3/4 for view switching, Cmd+T for new terminal
+  // Global keyboard shortcuts: Cmd+1..5 for view switching, Cmd+T for new terminal
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (!e.metaKey && !e.ctrlKey) return;
 
-      // Cmd+1..4 view switching
+      // Cmd+1..5 view switching
       const num = parseInt(e.key, 10);
       if (num >= 1 && num <= VIEW_ROUTES.length) {
         e.preventDefault();
@@ -49,6 +52,41 @@ export function Layout() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [navigate]);
+
+  // Listen for menu events from native menu bar
+  useEffect(() => {
+    let unlistenTerminal: (() => void) | undefined;
+    let unlistenPreset: (() => void) | undefined;
+
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen("menu:new-terminal", () => {
+        addPane({ title: "Terminal" });
+        navigate("/terminal");
+      }).then((fn) => { unlistenTerminal = fn; });
+
+      listen<string>("menu:launch-preset", (event) => {
+        const presetIdStr = event.payload.replace("preset:", "");
+        const presetId = parseInt(presetIdStr, 10);
+        if (!isNaN(presetId)) {
+          api.listCliPresets().then((presets) => {
+            const preset = presets.find((p) => p.id === presetId);
+            if (preset) {
+              const command = preset.flags
+                ? `${preset.cli_binary} ${preset.flags}`
+                : preset.cli_binary;
+              addPane({ title: preset.name, command });
+              navigate("/terminal");
+            }
+          });
+        }
+      }).then((fn) => { unlistenPreset = fn; });
+    });
+
+    return () => {
+      unlistenTerminal?.();
+      unlistenPreset?.();
+    };
+  }, [addPane, navigate]);
 
   return (
     <div style={{
@@ -72,7 +110,7 @@ export function Layout() {
           overflow: "hidden",
         }}>
           <ErrorBoundary label="Terminal">
-            <TerminalIsland />
+            <SplitContainer />
           </ErrorBoundary>
         </div>
 

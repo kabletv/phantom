@@ -23,6 +23,7 @@ pub async fn create_terminal(
     cols: u16,
     rows: u16,
     channel: tauri::ipc::Channel<TerminalEvent>,
+    working_dir: Option<String>,
 ) -> Result<SessionId, String> {
     let session_id = state.next_session_id();
 
@@ -31,6 +32,7 @@ pub async fn create_terminal(
         shell.as_deref(),
         cols,
         rows,
+        working_dir.as_deref(),
     )
     .map_err(|e| format!("Failed to create terminal session: {e}"))?;
 

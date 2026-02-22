@@ -11,6 +11,9 @@ dist/
 # Tauri build output
 crates/phantom-app/gen/
 
+# Phantom runtime data
+.phantom/
+
 # IDE
 .vscode/
 .idea/
